@@ -1,86 +1,89 @@
+import os
+import numpy as np
 import streamlit as st
 import tensorflow as tf
-import numpy as np
 from PIL import Image
-import os
-import sys
 
-# -------------------------------
-# App Config
-# -------------------------------
+# ----------------------------
+# Page configuration
+# ----------------------------
 st.set_page_config(
     page_title="Multiclass Image Classification",
     layout="centered"
 )
 
-st.title("Multiclass Image Classification")
-st.write("Upload an image of a **cat**, **dog**, or **horse**")
+st.title("🐶🐱🐴 Multiclass Image Classification")
+st.write("Upload an image and the model will predict the class.")
 
-# -------------------------------
-# Load Model (Inference Only)
-# -------------------------------
+# ----------------------------
+# Load model (cached)
+# ----------------------------
 @st.cache_resource
 def load_model():
-    model_path = os.path.join(
-        os.path.dirname(__file__),  # app/
-        "..",                       # project root
-        "model",
-        "image_classifier_deploy.keras"
-    )
-    return tf.keras.models.load_model(model_path, compile=False)
+    base_dir = os.path.dirname(__file__)
+    model_path = os.path.join(base_dir, "..", "model", "saved_model")
+    return tf.keras.models.load_model(model_path)
 
 model = load_model()
+st.success("✅ Model loaded successfully")
 
-# -------------------------------
-# Class Labels (MUST match training order)
-# -------------------------------
+# ----------------------------
+# Class names (MUST match training order)
+# ----------------------------
+# Change order ONLY if your training order was different
 class_names = ["cats", "dogs", "horses"]
 
-# -------------------------------
-# Image Upload
-# -------------------------------
+# ----------------------------
+# Image preprocessing function
+# ----------------------------
+def preprocess_image(img):
+    img = img.convert("RGB")
+    img = img.resize((224, 224))   # must match training size
+    img_array = np.array(img) / 255.0
+    img_array = np.expand_dims(img_array, axis=0)
+    return img_array
+
+# ----------------------------
+# File uploader
+# ----------------------------
 uploaded_file = st.file_uploader(
-    "Choose an image",
+    "📤 Upload an image (jpg, jpeg, png)",
     type=["jpg", "jpeg", "png"]
 )
 
+# ----------------------------
+# Prediction
+# ----------------------------
 if uploaded_file is not None:
     try:
-        # Load & display image
-        image = Image.open(uploaded_file).convert("RGB")
+        image = Image.open(uploaded_file)
         st.image(image, caption="Uploaded Image", use_column_width=True)
 
-        # -------------------------------
-        # Preprocessing (MUST match training)
-        # -------------------------------
-        image = image.resize((224, 224))
-        img_array = np.array(image) / 255.0
-        img_array = np.expand_dims(img_array, axis=0)
+        processed_image = preprocess_image(image)
 
-        # -------------------------------
-        # Prediction
-        # -------------------------------
-        predictions = model.predict(img_array)[0]
-        predicted_class = class_names[np.argmax(predictions)]
-        confidence = np.max(predictions) * 100
+        predictions = model.predict(processed_image)
+        confidence_scores = predictions[0]
 
-        # -------------------------------
-        # Results
-        # -------------------------------
-        st.subheader("Prediction Result")
+        predicted_index = np.argmax(confidence_scores)
+        predicted_class = class_names[predicted_index]
+        confidence = confidence_scores[predicted_index] * 100
+
+        st.subheader("🔍 Prediction Result")
         st.write(f"**Predicted Class:** {predicted_class}")
         st.write(f"**Confidence:** {confidence:.2f}%")
 
-        st.subheader("Class Probabilities")
-        for cls, prob in zip(class_names, predictions):
-            st.write(f"{cls}: {prob * 100:.2f}%")
+        st.subheader("📊 Class Probabilities")
+        for i, class_name in enumerate(class_names):
+            st.write(f"{class_name}: {confidence_scores[i]*100:.2f}%")
 
     except Exception as e:
-        st.error("Error processing the image.")
-        st.write(str(e))
+        st.error("❌ Error processing image")
+        st.exception(e)
 
-# -------------------------------
+# ----------------------------
 # Footer
-# -------------------------------
+# ----------------------------
 st.markdown("---")
-st.caption("Built using TensorFlow, Keras & Streamlit")
+st.markdown(
+    "Developed as an **AI/ML Project** using Transfer Learning, TensorFlow, and Streamlit 🚀"
+)
