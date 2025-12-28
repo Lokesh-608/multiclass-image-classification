@@ -2,18 +2,22 @@ import streamlit as st
 import tensorflow as tf
 import numpy as np
 from PIL import Image
+import os
 
-# Load model
 @st.cache_resource
 def load_model():
-    return tf.keras.models.load_model("model/image_classifier.keras")
+    model_path = os.path.join(
+        os.path.dirname(__file__),
+        "..",
+        "model",
+        "image_classifier.keras"
+    )
+    return tf.keras.models.load_model(model_path)
 
 model = load_model()
 
-# Class names (must match training order)
 class_names = ["cats", "dogs", "horses"]
 
-# App UI
 st.title("Multiclass Image Classification")
 st.write("Upload an image of a cat, dog, or horse")
 
@@ -23,12 +27,10 @@ if uploaded_file is not None:
     image = Image.open(uploaded_file).convert("RGB")
     st.image(image, caption="Uploaded Image", use_column_width=True)
 
-    # Preprocess image
     image = image.resize((224, 224))
     img_array = np.array(image) / 255.0
     img_array = np.expand_dims(img_array, axis=0)
 
-    # Prediction
     predictions = model.predict(img_array)[0]
     predicted_class = class_names[np.argmax(predictions)]
     confidence = np.max(predictions) * 100
