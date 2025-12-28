@@ -12,7 +12,8 @@ def load_model():
         "model",
         "image_classifier.keras"
     )
-    return tf.keras.models.load_model(model_path)
+    return tf.keras.models.load_model(model_path, compile=False)
+
 
 model = load_model()
 
