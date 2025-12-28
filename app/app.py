@@ -4,9 +4,6 @@ import streamlit as st
 import tensorflow as tf
 from PIL import Image
 
-# ----------------------------
-# Page configuration
-# ----------------------------
 st.set_page_config(
     page_title="Multiclass Image Classification",
     layout="centered"
@@ -16,7 +13,7 @@ st.title("🐶🐱🐴 Multiclass Image Classification")
 st.write("Upload an image and the model will predict the class.")
 
 # ----------------------------
-# Load model (cached)
+# Load model (Keras 3 – exported model)
 # ----------------------------
 @st.cache_resource
 def load_model():
@@ -28,23 +25,22 @@ model = load_model()
 st.success("✅ Model loaded successfully")
 
 # ----------------------------
-# Class names (MUST match training order)
+# Class names (same order as training)
 # ----------------------------
-# Change order ONLY if your training order was different
 class_names = ["cats", "dogs", "horses"]
 
 # ----------------------------
-# Image preprocessing function
+# Image preprocessing
 # ----------------------------
 def preprocess_image(img):
     img = img.convert("RGB")
-    img = img.resize((224, 224))   # must match training size
+    img = img.resize((224, 224))
     img_array = np.array(img) / 255.0
     img_array = np.expand_dims(img_array, axis=0)
     return img_array
 
 # ----------------------------
-# File uploader
+# Upload image
 # ----------------------------
 uploaded_file = st.file_uploader(
     "📤 Upload an image (jpg, jpeg, png)",
@@ -61,7 +57,8 @@ if uploaded_file is not None:
 
         processed_image = preprocess_image(image)
 
-        predictions = model.predict(processed_image)
+        # ✅ Keras 3 inference (NO .predict)
+        predictions = model(processed_image, training=False).numpy()
         confidence_scores = predictions[0]
 
         predicted_index = np.argmax(confidence_scores)
@@ -80,10 +77,7 @@ if uploaded_file is not None:
         st.error("❌ Error processing image")
         st.exception(e)
 
-# ----------------------------
-# Footer
-# ----------------------------
 st.markdown("---")
 st.markdown(
-    "Developed as an **AI/ML Project** using Transfer Learning, TensorFlow, and Streamlit 🚀"
+    "Developed as an **AI/ML Project** using TensorFlow, Keras 3, and Streamlit 🚀"
 )
