@@ -4,6 +4,9 @@ import streamlit as st
 import tensorflow as tf
 from PIL import Image
 
+# ----------------------------
+# Page config
+# ----------------------------
 st.set_page_config(
     page_title="Multiclass Image Classification",
     layout="centered"
@@ -13,15 +16,17 @@ st.title("🐶🐱🐴 Multiclass Image Classification")
 st.write("Upload an image and the model will predict the class.")
 
 # ----------------------------
-# Load model (Keras 3 – exported model)
+# Load SavedModel (Keras 3 export)
 # ----------------------------
 @st.cache_resource
 def load_model():
     base_dir = os.path.dirname(__file__)
     model_path = os.path.join(base_dir, "..", "model", "saved_model")
-    return tf.keras.models.load_model(model_path)
+    return tf.saved_model.load(model_path)
 
 model = load_model()
+infer = model.signatures["serving_default"]
+
 st.success("✅ Model loaded successfully")
 
 # ----------------------------
@@ -37,10 +42,10 @@ def preprocess_image(img):
     img = img.resize((224, 224))
     img_array = np.array(img) / 255.0
     img_array = np.expand_dims(img_array, axis=0)
-    return img_array
+    return tf.convert_to_tensor(img_array, dtype=tf.float32)
 
 # ----------------------------
-# Upload image
+# File uploader
 # ----------------------------
 uploaded_file = st.file_uploader(
     "📤 Upload an image (jpg, jpeg, png)",
@@ -55,15 +60,15 @@ if uploaded_file is not None:
         image = Image.open(uploaded_file)
         st.image(image, caption="Uploaded Image", use_column_width=True)
 
-        processed_image = preprocess_image(image)
+        input_tensor = preprocess_image(image)
 
-        # ✅ Keras 3 inference (NO .predict)
-        predictions = model(processed_image, training=False).numpy()
-        confidence_scores = predictions[0]
+        # ✅ Correct SavedModel inference
+        outputs = infer(input_tensor)
+        predictions = list(outputs.values())[0].numpy()[0]
 
-        predicted_index = np.argmax(confidence_scores)
+        predicted_index = np.argmax(predictions)
         predicted_class = class_names[predicted_index]
-        confidence = confidence_scores[predicted_index] * 100
+        confidence = predictions[predicted_index] * 100
 
         st.subheader("🔍 Prediction Result")
         st.write(f"**Predicted Class:** {predicted_class}")
@@ -71,7 +76,7 @@ if uploaded_file is not None:
 
         st.subheader("📊 Class Probabilities")
         for i, class_name in enumerate(class_names):
-            st.write(f"{class_name}: {confidence_scores[i]*100:.2f}%")
+            st.write(f"{class_name}: {predictions[i]*100:.2f}%")
 
     except Exception as e:
         st.error("❌ Error processing image")
@@ -79,5 +84,5 @@ if uploaded_file is not None:
 
 st.markdown("---")
 st.markdown(
-    "Developed as an **AI/ML Project** using TensorFlow, Keras 3, and Streamlit 🚀"
+    "Developed as an **AI/ML Project** using TensorFlow SavedModel, Keras 3, and Streamlit 🚀"
 )
